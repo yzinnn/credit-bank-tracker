@@ -160,13 +160,47 @@ export const INITIAL_COURSES = [
     ]
   }
 ];
-
+// 각 과목의 id(c1~c8)는 INITIAL_COURSES 배열의 id와 일치해야 합니다.
 export const ACADEMIC_SCHEDULE = [
-  { title:"쪽지시험", startDate:"2026-03-31", endDate:"2026-04-13", type:"exam" },
-  { title:"중간고사", startDate:"2026-04-17", endDate:"2026-04-20", type:"exam" },
-  { title:"토론",     startDate:"2026-04-21", endDate:"2026-05-11", type:"task" },
-  { title:"과제",     startDate:"2026-05-05", endDate:"2026-06-01", type:"task" },
-  { title:"기말고사", startDate:"2026-06-12", endDate:"2026-06-15", type:"exam" }
+  // 기계공작법 (c1)
+  { courseId: "c1", title: "쪽지시험", startDate: "2026-03-31", endDate: "2026-04-13", type: "exam" },
+  { courseId: "c1", title: "중간고사", startDate: "2026-04-17", endDate: "2026-04-20", type: "exam" },
+  { courseId: "c1", title: "토론", startDate: "2026-04-21", endDate: "2026-05-11", type: "task" },
+  { courseId: "c1", title: "과제", startDate: "2026-05-05", endDate: "2026-06-01", type: "task" },
+  { courseId: "c1", title: "기말고사", startDate: "2026-06-12", endDate: "2026-06-15", type: "exam" },
+
+  // 평생교육방법론 (c2)
+  { courseId: "c2", title: "과제 제출", startDate: "2026-03-16", endDate: "2026-05-24", type: "task" },
+  { courseId: "c2", title: "자유토론(1)", startDate: "2026-03-30", endDate: "2026-04-12", type: "task" },
+  { courseId: "c2", title: "중간고사", startDate: "2026-04-20", endDate: "2026-04-26", type: "exam" },
+  { courseId: "c2", title: "퀴즈", startDate: "2026-05-04", endDate: "2026-05-31", type: "exam" },
+  { courseId: "c2", title: "자유토론(2)", startDate: "2026-05-11", endDate: "2026-05-24", type: "task" }, 
+  { courseId: "c2", title: "기말고사", startDate: "2026-06-08", endDate: "2026-06-14", type: "exam" },
+
+  // e-비즈니스전략 (c3)
+  { courseId: "c3", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c3", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" },
+
+  // 설득커뮤니케이션 (c4)
+  { courseId: "c4", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c4", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" },
+
+  // 기업과 사회 (c5)
+  { courseId: "c5", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c5", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" },
+
+  // 경영혁신 (c6)
+  { courseId: "c6", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c6", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" },
+
+  // 실용한문 (c7)
+  { courseId: "c7", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c7", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" },
+
+  // 현대인의 정신건강 (c8)
+  { courseId: "c8", title: "중간고사", startDate: "2026-04-13", endDate: "2026-04-19", type: "exam" },
+  { courseId: "c8", title: "개인 과제", startDate: "2026-05-11", endDate: "2026-05-24", type: "task" },
+  { courseId: "c8", title: "기말고사", startDate: "2026-06-01", endDate: "2026-06-07", type: "exam" }
 ];
 
 export const COURSE_COLORS = [
