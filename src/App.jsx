@@ -4,12 +4,17 @@ import { useStorage } from './useStorage';
 import { COURSE_COLORS } from './data';
 
 /* ─── 유틸 ─── */
-function parseDeadline(periodStr, year = 2026) {
-  if (!periodStr) return null;
+// 멍청하게 날려먹었던 시작일~종료일 추출 로직 복구
+function parseRange(periodStr, year = 2026) {
+  if (!periodStr) return { start: null, end: null };
   const parts = periodStr.split('~').map(s => s.trim());
-  if (parts.length < 2) return null;
+  if (parts.length < 2) return { start: null, end: null };
+  const [sm, sd] = parts[0].split('-').map(Number);
   const [em, ed] = parts[1].split('-').map(Number);
-  return new Date(year, em - 1, ed, 23, 59, 59);
+  return {
+    start: new Date(year, sm - 1, sd, 0, 0, 0),
+    end: new Date(year, em - 1, ed, 23, 59, 59)
+  };
 }
 
 function getDday(targetDate) {
@@ -37,7 +42,7 @@ export default function App() {
   const [currMonth, setCurrMonth] = useState(new Date());
   const [selDate, setSelDate] = useState(new Date());
   
-  // 자격증 추가 모달 상태 (시간 추가)
+  // 자격증/일정 추가 모달 상태
   const [showCertModal, setShowCertModal] = useState(false);
   const [newCertName, setNewCertName] = useState('');
   const [newCertDate, setNewCertDate] = useState('');
@@ -59,25 +64,23 @@ export default function App() {
   const allTasks = useMemo(() => {
     const items = [];
     courses.forEach((c, ci) => c.weeks.forEach((w, wi) => {
-      const dl = parseDeadline(w.period);
+      const range = parseRange(w.period); // 시작일과 마감일 모두 가져옴
       w.lectures.forEach((l, li) => {
-        items.push({ type: 'lecture', id: `l-${ci}-${wi}-${li}`, ci, wi, li, title: l.title, cname: c.courseName, week: w.week, dl, completed: l.completed, col: COURSE_COLORS[ci] });
+        items.push({ 
+          type: 'lecture', id: `l-${ci}-${wi}-${li}`, ci, wi, li, 
+          title: l.title, cname: c.courseName, week: w.week, 
+          start: range.start, end: range.end, dl: range.end, // start, end 정보 부활
+          completed: l.completed, col: COURSE_COLORS[ci] 
+        });
       });
     }));
     certs.forEach(cert => {
-      // 시간 데이터가 포함되어 있는지 확인 (기존 데이터 호환)
       const d = cert.date.includes('T') ? new Date(cert.date) : new Date(cert.date + 'T23:59:59');
       const timeString = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
-      
       items.push({ 
-        type: 'cert', 
-        id: cert.id, 
-        title: cert.name, 
-        cname: '일정/자격증', 
-        time: timeString !== '23:59' ? timeString : '', // 23:59면 굳이 표시 안 함
-        dl: d, 
-        completed: cert.completed, 
-        col: { text: '#059669', light: '#D1FAE5' } 
+        type: 'cert', id: cert.id, title: cert.name, cname: '일정/자격증', 
+        time: timeString !== '23:59' ? timeString : '', 
+        dl: d, completed: cert.completed, col: { text: '#059669', light: '#D1FAE5' } 
       });
     });
     return items;
@@ -86,15 +89,26 @@ export default function App() {
   const todoTasks = useMemo(() => allTasks.filter(t => !t.completed).sort((a, b) => (getDday(a.dl) ?? 9999) - (getDday(b.dl) ?? 9999)), [allTasks]);
   const doneTasks = useMemo(() => allTasks.filter(t => t.completed).sort((a, b) => (getDday(b.dl) ?? 0) - (getDday(a.dl) ?? 0)), [allTasks]);
 
+  // 해당 일자 '할 일 목록' (마감뿐만 아니라 수강 기간 내에 포함되면 무조건 표시)
   const selDayTasks = useMemo(() => {
-    return allTasks.filter(t => t.dl && t.dl.toDateString() === selDate.toDateString());
+    const dObj = new Date(selDate.getFullYear(), selDate.getMonth(), selDate.getDate());
+    return allTasks.filter(t => {
+      if (t.type === 'lecture') {
+        if (!t.start || !t.end) return false;
+        const s = new Date(t.start.getFullYear(), t.start.getMonth(), t.start.getDate());
+        const e = new Date(t.end.getFullYear(), t.end.getMonth(), t.end.getDate());
+        return dObj >= s && dObj <= e; // 선택한 날짜가 수강 기간 안에 있으면 전부 노출
+      } else {
+        if (!t.dl) return false;
+        const dl = new Date(t.dl.getFullYear(), t.dl.getMonth(), t.dl.getDate());
+        return dObj.getTime() === dl.getTime(); // 자격증/일정은 해당 날짜에만 노출
+      }
+    });
   }, [selDate, allTasks]);
 
   const handleAddCert = (e) => {
     e.preventDefault();
     if (!newCertName || !newCertDate) return alert('이름과 날짜를 입력해주세요.');
-    
-    // 날짜와 시간을 T로 연결하여 저장
     const timeStr = newCertTime || '23:59';
     const fullDateTime = `${newCertDate}T${timeStr}:00`;
 
@@ -145,6 +159,7 @@ export default function App() {
                     const isSel = selDate.toDateString() === dObj.toDateString();
                     const isToday = new Date().toDateString() === dObj.toDateString();
                     
+                    // 달력 셀 안에는 '마감'인 것만 +N건으로 지저분하지 않게 표시
                     const dayLecs = todoTasks.filter(t => t.type === 'lecture' && t.dl?.toDateString() === dObj.toDateString());
                     const dayCerts = allTasks.filter(t => t.type === 'cert' && t.dl?.toDateString() === dObj.toDateString()); 
 
@@ -167,8 +182,9 @@ export default function App() {
                 </div>
               </section>
 
+              {/* 하단: 마감 목록 -> '할 일 목록'으로 수정 */}
               <section className="card date-detail-sec">
-                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 마감 항목</h3>
+                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 할 일 목록</h3>
                 <div className="detail-task-list">
                   {selDayTasks.length > 0 ? selDayTasks.map(t => (
                     <label key={t.id} className={`detail-task-item ${t.completed ? 'completed' : ''}`}>
@@ -184,7 +200,7 @@ export default function App() {
                       </span>
                     </label>
                   )) : (
-                    <div className="empty-msg">해당 날짜에 마감되는 항목이 없습니다.</div>
+                    <div className="empty-msg">해당 날짜에 할 일이나 마감 일정이 없습니다.</div>
                   )}
                 </div>
               </section>
@@ -265,7 +281,6 @@ export default function App() {
                   <label>일정 이름</label>
                   <input type="text" value={newCertName} onChange={e => setNewCertName(e.target.value)} placeholder="예: 정보처리기사 필기" required />
                 </div>
-                {/* 날짜와 시간을 나란히 배치 */}
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <div className="input-group" style={{ flex: 1 }}>
                     <label>날짜 (마감일)</label>
