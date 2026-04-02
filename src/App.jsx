@@ -4,6 +4,7 @@ import { useStorage } from './useStorage';
 import { COURSE_COLORS } from './data';
 
 /* ─── 유틸 ─── */
+// 멍청하게 날려먹었던 시작일~종료일 추출 로직 복구
 function parseRange(periodStr, year = 2026) {
   if (!periodStr) return { start: null, end: null };
   const parts = periodStr.split('~').map(s => s.trim());
@@ -37,10 +38,11 @@ export default function App() {
   
   const [tab, setTab] = useState('dash');
   const [selCourse, setSelCourse] = useState(0);
-  const [taskMode, setTaskMode] = useState('todo'); // 해야 할 일 / 한 일 탭
+  const [taskMode, setTaskMode] = useState('todo'); 
   const [currMonth, setCurrMonth] = useState(new Date());
   const [selDate, setSelDate] = useState(new Date());
   
+  // 자격증/일정 추가 모달 상태
   const [showCertModal, setShowCertModal] = useState(false);
   const [newCertName, setNewCertName] = useState('');
   const [newCertDate, setNewCertDate] = useState('');
@@ -59,16 +61,15 @@ export default function App() {
     return res;
   }, [currMonth]);
 
-  // 전체 할 일 목록 (마감일 및 시작일 포함)
   const allTasks = useMemo(() => {
     const items = [];
     courses.forEach((c, ci) => c.weeks.forEach((w, wi) => {
-      const range = parseRange(w.period);
+      const range = parseRange(w.period); // 시작일과 마감일 모두 가져옴
       w.lectures.forEach((l, li) => {
         items.push({ 
           type: 'lecture', id: `l-${ci}-${wi}-${li}`, ci, wi, li, 
           title: l.title, cname: c.courseName, week: w.week, 
-          start: range.start, end: range.end, dl: range.end, 
+          start: range.start, end: range.end, dl: range.end, // start, end 정보 부활
           completed: l.completed, col: COURSE_COLORS[ci] 
         });
       });
@@ -85,36 +86,25 @@ export default function App() {
     return items;
   }, [courses, certs]);
 
-  // 1. 대시보드 하단: 선택한 날짜가 속한 '해당 주차'의 할 일 (과목별 강의 진도)
-  const selWeekLectures = useMemo(() => {
+  const todoTasks = useMemo(() => allTasks.filter(t => !t.completed).sort((a, b) => (getDday(a.dl) ?? 9999) - (getDday(b.dl) ?? 9999)), [allTasks]);
+  const doneTasks = useMemo(() => allTasks.filter(t => t.completed).sort((a, b) => (getDday(b.dl) ?? 0) - (getDday(a.dl) ?? 0)), [allTasks]);
+
+  // 해당 일자 '할 일 목록' (마감뿐만 아니라 수강 기간 내에 포함되면 무조건 표시)
+  const selDayTasks = useMemo(() => {
     const dObj = new Date(selDate.getFullYear(), selDate.getMonth(), selDate.getDate());
-    return allTasks.filter(t => t.type === 'lecture' && t.start && t.end && dObj >= t.start && dObj <= t.end);
-  }, [selDate, allTasks]);
-
-  // 2. 대시보드 사이드바: 선택한 날짜 '당일'에 마감되는 할 일
-  const selDayDeadlineTasks = useMemo(() => {
-    return allTasks.filter(t => t.dl && t.dl.toDateString() === selDate.toDateString());
-  }, [selDate, allTasks]);
-
-  const sidebarTodo = useMemo(() => selDayDeadlineTasks.filter(t => !t.completed), [selDayDeadlineTasks]);
-  const sidebarDone = useMemo(() => selDayDeadlineTasks.filter(t => t.completed), [selDayDeadlineTasks]);
-
-  // 3. 과목별 진도 탭: 현재 진행 중인 주차 상단 고정 로직
-  const { currentWeeks, otherWeeks } = useMemo(() => {
-    if (!courses[selCourse]) return { currentWeeks: [], otherWeeks: [] };
-    const today = new Date();
-    const curr = [];
-    const other = [];
-    
-    courses[selCourse].weeks.forEach((w, wi) => {
-      const r = parseRange(w.period);
-      const isCurrent = r.start && r.end && today >= r.start && today <= r.end;
-      if (isCurrent) curr.push({ ...w, origIndex: wi });
-      else other.push({ ...w, origIndex: wi });
+    return allTasks.filter(t => {
+      if (t.type === 'lecture') {
+        if (!t.start || !t.end) return false;
+        const s = new Date(t.start.getFullYear(), t.start.getMonth(), t.start.getDate());
+        const e = new Date(t.end.getFullYear(), t.end.getMonth(), t.end.getDate());
+        return dObj >= s && dObj <= e; // 선택한 날짜가 수강 기간 안에 있으면 전부 노출
+      } else {
+        if (!t.dl) return false;
+        const dl = new Date(t.dl.getFullYear(), t.dl.getMonth(), t.dl.getDate());
+        return dObj.getTime() === dl.getTime(); // 자격증/일정은 해당 날짜에만 노출
+      }
     });
-    
-    return { currentWeeks: curr, otherWeeks: other.reverse() }; // 나머지는 역순(최신순)
-  }, [courses, selCourse]);
+  }, [selDate, allTasks]);
 
   const handleAddCert = (e) => {
     e.preventDefault();
@@ -169,8 +159,8 @@ export default function App() {
                     const isSel = selDate.toDateString() === dObj.toDateString();
                     const isToday = new Date().toDateString() === dObj.toDateString();
                     
-                    // 달력 셀: 마감인 항목만 심플하게 표시
-                    const dayLecs = allTasks.filter(t => t.type === 'lecture' && !t.completed && t.dl?.toDateString() === dObj.toDateString());
+                    // 달력 셀 안에는 '마감'인 것만 +N건으로 지저분하지 않게 표시
+                    const dayLecs = todoTasks.filter(t => t.type === 'lecture' && t.dl?.toDateString() === dObj.toDateString());
                     const dayCerts = allTasks.filter(t => t.type === 'cert' && t.dl?.toDateString() === dObj.toDateString()); 
 
                     return (
@@ -183,7 +173,7 @@ export default function App() {
                             </div>
                           ))}
                           {dayLecs.length > 0 && (
-                            <div className="cal-pill">마감 +{dayLecs.length}</div>
+                            <div className="cal-pill">마감 +{dayLecs.length}건</div>
                           )}
                         </div>
                       </div>
@@ -192,38 +182,37 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 하단: 해당 "주차"에 해야 할 일 (강의 목록) */}
+              {/* 하단: 마감 목록 -> '할 일 목록'으로 수정 */}
               <section className="card date-detail-sec">
-                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 기준 진행 중인 주차 할 일</h3>
+                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 할 일 목록</h3>
                 <div className="detail-task-list">
-                  {selWeekLectures.length > 0 ? selWeekLectures.map(t => (
+                  {selDayTasks.length > 0 ? selDayTasks.map(t => (
                     <label key={t.id} className={`detail-task-item ${t.completed ? 'completed' : ''}`}>
                       <input 
                         type="checkbox" 
                         checked={t.completed} 
-                        onChange={() => toggleLecture(t.ci, t.wi, t.li)} 
+                        onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} 
                       />
-                      <span className="badge" style={{ background: t.col.light, color: t.col.text }}>{t.cname} {t.week}주차</span>
-                      <span className="title">{t.title}</span>
+                      <span className="badge" style={{ background: t.col.light, color: t.col.text }}>{t.cname}</span>
+                      <span className="title">
+                        {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
+                        {t.title}
+                      </span>
                     </label>
                   )) : (
-                    <div className="empty-msg">해당 날짜가 포함된 수강 기간의 강의가 없습니다.</div>
+                    <div className="empty-msg">해당 날짜에 할 일이나 마감 일정이 없습니다.</div>
                   )}
                 </div>
               </section>
             </div>
 
-            {/* 우측 사이드바: 해당 "날짜 당일"에 마감되는 할 일 */}
             <aside className="right-col card">
-              <div className="sidebar-header">
-                <h3>⏰ {selDate.getDate()}일 마감 일정</h3>
-              </div>
               <div className="task-tabs">
                 <button className={taskMode === 'todo' ? 'active' : ''} onClick={() => setTaskMode('todo')}>📌 해야 할 일</button>
                 <button className={taskMode === 'done' ? 'active' : ''} onClick={() => setTaskMode('done')}>✅ 한 일</button>
               </div>
               <div className="task-list">
-                {(taskMode === 'todo' ? sidebarTodo : sidebarDone).map(t => {
+                {(taskMode === 'todo' ? todoTasks : doneTasks).map(t => {
                   const d = getDday(t.dl);
                   const isUrgent = d !== null && d <= 3 && !t.completed;
                   return (
@@ -234,7 +223,7 @@ export default function App() {
                         onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} 
                       />
                       <div className="info">
-                        <span className="cname" style={{ color: t.col.text, background: t.col.light }}>{t.cname}</span>
+                        <span className="cname" style={{ color: t.col.text, background: t.col.light }}>{t.cname} {t.week ? `${t.week}주차` : ''}</span>
                         <p className={`title ${t.completed ? 'strike' : ''}`}>
                           {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
                           {t.title}
@@ -244,8 +233,8 @@ export default function App() {
                     </label>
                   );
                 })}
-                {(taskMode === 'todo' ? sidebarTodo : sidebarDone).length === 0 && (
-                  <div className="empty-msg">이 날짜에 마감되는 일정이 없습니다.</div>
+                {(taskMode === 'todo' ? todoTasks : doneTasks).length === 0 && (
+                  <div className="empty-msg">목록이 비어있습니다.</div>
                 )}
               </div>
             </aside>
@@ -253,7 +242,6 @@ export default function App() {
           </div>
         ) : (
           
-          /* ══ 과목별 진도 페이지 ══ */
           <div className="course-view card">
             <div className="course-nav">
               {courses.map((c, i) => (
@@ -261,52 +249,29 @@ export default function App() {
               ))}
             </div>
             <div className="week-list">
-              
-              {/* 1. 현재 주차 (무조건 최상단 고정) */}
-              {currentWeeks.length > 0 && (
-                <div className="current-week-section">
-                  <div className="section-title">🔥 이번 주차 (현재 진행 중)</div>
-                  {currentWeeks.map((w) => (
-                    <div key={`curr-${w.week}`} className={`week-card active-week ${w.lectures.every(l => l.completed) ? 'done' : ''}`}>
-                      <div className="week-info">
-                        <h3>{w.week}주차</h3>
-                        <span className="period">{w.period}</span>
-                      </div>
-                      <div className="lec-list">
-                        {w.lectures.map((l, li) => (
-                          <label key={li} className="lec-item">
-                            <input type="checkbox" checked={l.completed} onChange={() => toggleLecture(selCourse, w.origIndex, li)} />
-                            <span className={l.completed ? 'strike' : ''}>{l.title}</span>
-                          </label>
-                        ))}
-                      </div>
+              {courses[selCourse].weeks.slice().reverse().map((w, wi) => {
+                const origIndex = courses[selCourse].weeks.length - 1 - wi; 
+                return (
+                  <div key={wi} className={`week-card ${w.lectures.every(l => l.completed) ? 'done' : ''}`}>
+                    <div className="week-info">
+                      <h3>{w.week}주차</h3>
+                      <span className="period">{w.period}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 2. 나머지 주차들 */}
-              {otherWeeks.map((w) => (
-                <div key={`other-${w.week}`} className={`week-card ${w.lectures.every(l => l.completed) ? 'done' : ''}`}>
-                  <div className="week-info">
-                    <h3>{w.week}주차</h3>
-                    <span className="period">{w.period}</span>
+                    <div className="lec-list">
+                      {w.lectures.map((l, li) => (
+                        <label key={li} className="lec-item">
+                          <input type="checkbox" checked={l.completed} onChange={() => toggleLecture(selCourse, origIndex, li)} />
+                          <span className={l.completed ? 'strike' : ''}>{l.title}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                  <div className="lec-list">
-                    {w.lectures.map((l, li) => (
-                      <label key={li} className="lec-item">
-                        <input type="checkbox" checked={l.completed} onChange={() => toggleLecture(selCourse, w.origIndex, li)} />
-                        <span className={l.completed ? 'strike' : ''}>{l.title}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
 
-        {/* 모달 */}
         {showCertModal && (
           <div className="modal-overlay" onClick={() => setShowCertModal(false)}>
             <div className="modal-content card" onClick={e => e.stopPropagation()}>
