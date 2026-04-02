@@ -29,7 +29,6 @@ function ddayText(d) {
 }
 
 export default function App() {
-  // useStorage에서 addCert, deleteCert 등 자격증 관련 함수를 가져옵니다.
   const { courses, certs, loaded, toggleLecture, toggleCert, addCert, deleteCert } = useStorage();
   
   const [tab, setTab] = useState('dash');
@@ -38,12 +37,12 @@ export default function App() {
   const [currMonth, setCurrMonth] = useState(new Date());
   const [selDate, setSelDate] = useState(new Date());
   
-  // 자격증 추가 모달 상태
+  // 자격증 추가 모달 상태 (시간 추가)
   const [showCertModal, setShowCertModal] = useState(false);
   const [newCertName, setNewCertName] = useState('');
   const [newCertDate, setNewCertDate] = useState('');
+  const [newCertTime, setNewCertTime] = useState('23:59');
 
-  // 달력 배열 생성
   const calendarDays = useMemo(() => {
     const year = currMonth.getFullYear(), month = currMonth.getMonth();
     const first = new Date(year, month, 1).getDay();
@@ -57,7 +56,6 @@ export default function App() {
     return res;
   }, [currMonth]);
 
-  // 전체 할 일 목록
   const allTasks = useMemo(() => {
     const items = [];
     courses.forEach((c, ci) => c.weeks.forEach((w, wi) => {
@@ -67,33 +65,47 @@ export default function App() {
       });
     }));
     certs.forEach(cert => {
-      const d = new Date(cert.date + 'T23:59:59');
-      items.push({ type: 'cert', id: cert.id, title: cert.name, cname: '일정/자격증', dl: d, completed: cert.completed, col: { text: '#059669', light: '#D1FAE5' } });
+      // 시간 데이터가 포함되어 있는지 확인 (기존 데이터 호환)
+      const d = cert.date.includes('T') ? new Date(cert.date) : new Date(cert.date + 'T23:59:59');
+      const timeString = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+      
+      items.push({ 
+        type: 'cert', 
+        id: cert.id, 
+        title: cert.name, 
+        cname: '일정/자격증', 
+        time: timeString !== '23:59' ? timeString : '', // 23:59면 굳이 표시 안 함
+        dl: d, 
+        completed: cert.completed, 
+        col: { text: '#059669', light: '#D1FAE5' } 
+      });
     });
     return items;
   }, [courses, certs]);
 
-  // D-day 오름차순 (가장 급한 것부터)
   const todoTasks = useMemo(() => allTasks.filter(t => !t.completed).sort((a, b) => (getDday(a.dl) ?? 9999) - (getDday(b.dl) ?? 9999)), [allTasks]);
   const doneTasks = useMemo(() => allTasks.filter(t => t.completed).sort((a, b) => (getDday(b.dl) ?? 0) - (getDday(a.dl) ?? 0)), [allTasks]);
 
-  // 선택된 날짜의 할 일 추출 (해야 할 일 + 한 일 모두 표시)
   const selDayTasks = useMemo(() => {
     return allTasks.filter(t => t.dl && t.dl.toDateString() === selDate.toDateString());
   }, [selDate, allTasks]);
 
-  // 자격증 추가 핸들러
   const handleAddCert = (e) => {
     e.preventDefault();
     if (!newCertName || !newCertDate) return alert('이름과 날짜를 입력해주세요.');
-    // addCert 함수가 없는 구버전 useStorage를 대비한 방어 코드
+    
+    // 날짜와 시간을 T로 연결하여 저장
+    const timeStr = newCertTime || '23:59';
+    const fullDateTime = `${newCertDate}T${timeStr}:00`;
+
     if (addCert) {
-      addCert({ id: 'cert-' + Date.now(), name: newCertName, date: newCertDate, completed: false, note: '' });
+      addCert({ id: 'cert-' + Date.now(), name: newCertName, date: fullDateTime, completed: false, note: '' });
     } else {
       alert('useStorage.js에 addCert 함수가 필요합니다.');
     }
     setNewCertName('');
     setNewCertDate('');
+    setNewCertTime('23:59');
     setShowCertModal(false);
   };
 
@@ -116,7 +128,6 @@ export default function App() {
         {tab === 'dash' ? (
           <div className="dashboard-grid">
             
-            {/* 좌측: 달력 + 선택 날짜 액션 리스트 */}
             <div className="left-col">
               <section className="card calendar-sec">
                 <div className="cal-header">
@@ -134,21 +145,18 @@ export default function App() {
                     const isSel = selDate.toDateString() === dObj.toDateString();
                     const isToday = new Date().toDateString() === dObj.toDateString();
                     
-                    // 해당 날짜의 마감 항목 찾기
                     const dayLecs = todoTasks.filter(t => t.type === 'lecture' && t.dl?.toDateString() === dObj.toDateString());
-                    const dayCerts = allTasks.filter(t => t.type === 'cert' && t.dl?.toDateString() === dObj.toDateString()); // 자격증은 완료돼도 달력에 표시
+                    const dayCerts = allTasks.filter(t => t.type === 'cert' && t.dl?.toDateString() === dObj.toDateString()); 
 
                     return (
                       <div key={i} className={`cal-day ${day.current ? '' : 'dim'} ${isSel ? 'selected' : ''}`} onClick={() => setSelDate(dObj)}>
                         <div className={`day-num ${isToday ? 'today' : ''}`}>{day.d}</div>
                         <div className="cal-events">
-                          {/* 자격증/일정은 이름을 그대로 띄움 */}
                           {dayCerts.map(c => (
                             <div key={c.id} className={`cal-bar cert ${c.completed ? 'done' : ''}`} title={c.title}>
-                              {c.title}
+                              {c.time ? `[${c.time}] ` : ''}{c.title}
                             </div>
                           ))}
-                          {/* 강의는 숫자로만 심플하게 표시 */}
                           {dayLecs.length > 0 && (
                             <div className="cal-pill">마감 +{dayLecs.length}건</div>
                           )}
@@ -159,7 +167,6 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 하단: 선택한 날짜의 할 일 (체크박스 연동) */}
               <section className="card date-detail-sec">
                 <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 마감 항목</h3>
                 <div className="detail-task-list">
@@ -171,7 +178,10 @@ export default function App() {
                         onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} 
                       />
                       <span className="badge" style={{ background: t.col.light, color: t.col.text }}>{t.cname}</span>
-                      <span className="title">{t.title}</span>
+                      <span className="title">
+                        {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
+                        {t.title}
+                      </span>
                     </label>
                   )) : (
                     <div className="empty-msg">해당 날짜에 마감되는 항목이 없습니다.</div>
@@ -180,7 +190,6 @@ export default function App() {
               </section>
             </div>
 
-            {/* 우측: 사이드바 할일 (D-Day 급한 순 정렬) */}
             <aside className="right-col card">
               <div className="task-tabs">
                 <button className={taskMode === 'todo' ? 'active' : ''} onClick={() => setTaskMode('todo')}>📌 해야 할 일</button>
@@ -199,7 +208,10 @@ export default function App() {
                       />
                       <div className="info">
                         <span className="cname" style={{ color: t.col.text, background: t.col.light }}>{t.cname} {t.week ? `${t.week}주차` : ''}</span>
-                        <p className={`title ${t.completed ? 'strike' : ''}`}>{t.title}</p>
+                        <p className={`title ${t.completed ? 'strike' : ''}`}>
+                          {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
+                          {t.title}
+                        </p>
                       </div>
                       <div className={`dday-badge ${isUrgent ? 'urgent' : ''}`}>{ddayText(d)}</div>
                     </label>
@@ -214,7 +226,6 @@ export default function App() {
           </div>
         ) : (
           
-          /* ══ 과목별 진도 페이지 (최신 주차 상단) ══ */
           <div className="course-view card">
             <div className="course-nav">
               {courses.map((c, i) => (
@@ -245,7 +256,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 자격증/일정 추가 모달 */}
         {showCertModal && (
           <div className="modal-overlay" onClick={() => setShowCertModal(false)}>
             <div className="modal-content card" onClick={e => e.stopPropagation()}>
@@ -255,9 +265,16 @@ export default function App() {
                   <label>일정 이름</label>
                   <input type="text" value={newCertName} onChange={e => setNewCertName(e.target.value)} placeholder="예: 정보처리기사 필기" required />
                 </div>
-                <div className="input-group">
-                  <label>날짜 (마감일)</label>
-                  <input type="date" value={newCertDate} onChange={e => setNewCertDate(e.target.value)} required />
+                {/* 날짜와 시간을 나란히 배치 */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <div className="input-group" style={{ flex: 1 }}>
+                    <label>날짜 (마감일)</label>
+                    <input type="date" value={newCertDate} onChange={e => setNewCertDate(e.target.value)} required />
+                  </div>
+                  <div className="input-group" style={{ width: '130px' }}>
+                    <label>시간</label>
+                    <input type="time" value={newCertTime} onChange={e => setNewCertTime(e.target.value)} required />
+                  </div>
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn-cancel" onClick={() => setShowCertModal(false)}>취소</button>
@@ -265,16 +282,19 @@ export default function App() {
                 </div>
               </form>
               
-              {/* 기존 등록된 일정 삭제 영역 */}
               {certs.length > 0 && (
                 <div className="cert-manage-list">
                   <h4>등록된 일정 관리</h4>
-                  {certs.map(c => (
-                    <div key={c.id} className="cert-manage-item">
-                      <span>{c.name} ({c.date})</span>
-                      <button onClick={() => deleteCert(c.id)}>삭제</button>
-                    </div>
-                  ))}
+                  {certs.map(c => {
+                    const d = c.date.includes('T') ? new Date(c.date) : new Date(c.date + 'T23:59:59');
+                    const formatDt = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false})}`;
+                    return (
+                      <div key={c.id} className="cert-manage-item">
+                        <span>{c.name} <br/><small style={{color: '#9CA3AF'}}>{formatDt}</small></span>
+                        <button onClick={() => deleteCert(c.id)}>삭제</button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
