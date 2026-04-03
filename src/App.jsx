@@ -4,7 +4,6 @@ import { useStorage } from './useStorage';
 import { COURSE_COLORS } from './data';
 
 /* ─── 유틸 ─── */
-// 멍청하게 날려먹었던 시작일~종료일 추출 로직 복구
 function parseRange(periodStr, year = 2026) {
   if (!periodStr) return { start: null, end: null };
   const parts = periodStr.split('~').map(s => s.trim());
@@ -42,7 +41,6 @@ export default function App() {
   const [currMonth, setCurrMonth] = useState(new Date());
   const [selDate, setSelDate] = useState(new Date());
   
-  // 자격증/일정 추가 모달 상태
   const [showCertModal, setShowCertModal] = useState(false);
   const [newCertName, setNewCertName] = useState('');
   const [newCertDate, setNewCertDate] = useState('');
@@ -64,12 +62,12 @@ export default function App() {
   const allTasks = useMemo(() => {
     const items = [];
     courses.forEach((c, ci) => c.weeks.forEach((w, wi) => {
-      const range = parseRange(w.period); // 시작일과 마감일 모두 가져옴
+      const range = parseRange(w.period);
       w.lectures.forEach((l, li) => {
         items.push({ 
           type: 'lecture', id: `l-${ci}-${wi}-${li}`, ci, wi, li, 
           title: l.title, cname: c.courseName, week: w.week, 
-          start: range.start, end: range.end, dl: range.end, // start, end 정보 부활
+          start: range.start, end: range.end, dl: range.end, 
           completed: l.completed, col: COURSE_COLORS[ci] 
         });
       });
@@ -86,41 +84,41 @@ export default function App() {
     return items;
   }, [courses, certs]);
 
-  const todoTasks = useMemo(() => allTasks.filter(t => !t.completed).sort((a, b) => (getDday(a.dl) ?? 9999) - (getDday(b.dl) ?? 9999)), [allTasks]);
-  const doneTasks = useMemo(() => allTasks.filter(t => t.completed).sort((a, b) => (getDday(b.dl) ?? 0) - (getDday(a.dl) ?? 0)), [allTasks]);
-
-  // 해당 일자 '할 일 목록' (마감뿐만 아니라 수강 기간 내에 포함되면 무조건 표시)
-  const selDayTasks = useMemo(() => {
+  // 대시보드 하단: 선택 날짜 기준 "진행 중인" 주차의 강의들
+  const selWeekLectures = useMemo(() => {
     const dObj = new Date(selDate.getFullYear(), selDate.getMonth(), selDate.getDate());
-    return allTasks.filter(t => {
-      if (t.type === 'lecture') {
-        if (!t.start || !t.end) return false;
-        const s = new Date(t.start.getFullYear(), t.start.getMonth(), t.start.getDate());
-        const e = new Date(t.end.getFullYear(), t.end.getMonth(), t.end.getDate());
-        return dObj >= s && dObj <= e; // 선택한 날짜가 수강 기간 안에 있으면 전부 노출
-      } else {
-        if (!t.dl) return false;
-        const dl = new Date(t.dl.getFullYear(), t.dl.getMonth(), t.dl.getDate());
-        return dObj.getTime() === dl.getTime(); // 자격증/일정은 해당 날짜에만 노출
-      }
-    });
+    return allTasks.filter(t => t.type === 'lecture' && t.start && t.end && dObj >= t.start && dObj <= t.end);
   }, [selDate, allTasks]);
+
+  // 사이드바: 선택 날짜 "당일" 마감 항목들 (D-day 순 정렬)
+  const selDayDeadlineTasks = useMemo(() => {
+    return allTasks.filter(t => t.dl && t.dl.toDateString() === selDate.toDateString())
+                   .sort((a,b) => (getDday(a.dl) ?? 999) - (getDday(b.dl) ?? 999));
+  }, [selDate, allTasks]);
+
+  const sidebarTodo = useMemo(() => selDayDeadlineTasks.filter(t => !t.completed), [selDayDeadlineTasks]);
+  const sidebarDone = useMemo(() => selDayDeadlineTasks.filter(t => t.completed), [selDayDeadlineTasks]);
+
+  // 과목별 진도: 현재 주차 상단 고정 및 나머지 역순 정렬
+  const sortedWeeks = useMemo(() => {
+    if (!courses[selCourse]) return [];
+    const today = new Date();
+    const weeks = courses[selCourse].weeks.map((w, idx) => {
+      const r = parseRange(w.period);
+      return { ...w, origIndex: idx, isCurrent: r.start && r.end && today >= r.start && today <= r.end };
+    });
+    
+    const current = weeks.filter(w => w.isCurrent);
+    const others = weeks.filter(w => !w.isCurrent).reverse();
+    return [...current, ...others];
+  }, [courses, selCourse]);
 
   const handleAddCert = (e) => {
     e.preventDefault();
     if (!newCertName || !newCertDate) return alert('이름과 날짜를 입력해주세요.');
-    const timeStr = newCertTime || '23:59';
-    const fullDateTime = `${newCertDate}T${timeStr}:00`;
-
-    if (addCert) {
-      addCert({ id: 'cert-' + Date.now(), name: newCertName, date: fullDateTime, completed: false, note: '' });
-    } else {
-      alert('useStorage.js에 addCert 함수가 필요합니다.');
-    }
-    setNewCertName('');
-    setNewCertDate('');
-    setNewCertTime('23:59');
-    setShowCertModal(false);
+    const fullDateTime = `${newCertDate}T${newCertTime || '23:59'}:00`;
+    if (addCert) addCert({ id: 'cert-' + Date.now(), name: newCertName, date: fullDateTime, completed: false, note: '' });
+    setNewCertName(''); setNewCertDate(''); setNewCertTime('23:59'); setShowCertModal(false);
   };
 
   if (!loaded) return <div className="loading">로딩중...</div>;
@@ -141,7 +139,6 @@ export default function App() {
       <main className="content">
         {tab === 'dash' ? (
           <div className="dashboard-grid">
-            
             <div className="left-col">
               <section className="card calendar-sec">
                 <div className="cal-header">
@@ -158,23 +155,15 @@ export default function App() {
                     const dObj = new Date(day.y, day.m, day.d);
                     const isSel = selDate.toDateString() === dObj.toDateString();
                     const isToday = new Date().toDateString() === dObj.toDateString();
-                    
-                    // 달력 셀 안에는 '마감'인 것만 +N건으로 지저분하지 않게 표시
-                    const dayLecs = todoTasks.filter(t => t.type === 'lecture' && t.dl?.toDateString() === dObj.toDateString());
+                    const dayLecs = allTasks.filter(t => t.type === 'lecture' && !t.completed && t.dl?.toDateString() === dObj.toDateString());
                     const dayCerts = allTasks.filter(t => t.type === 'cert' && t.dl?.toDateString() === dObj.toDateString()); 
 
                     return (
                       <div key={i} className={`cal-day ${day.current ? '' : 'dim'} ${isSel ? 'selected' : ''}`} onClick={() => setSelDate(dObj)}>
                         <div className={`day-num ${isToday ? 'today' : ''}`}>{day.d}</div>
                         <div className="cal-events">
-                          {dayCerts.map(c => (
-                            <div key={c.id} className={`cal-bar cert ${c.completed ? 'done' : ''}`} title={c.title}>
-                              {c.time ? `[${c.time}] ` : ''}{c.title}
-                            </div>
-                          ))}
-                          {dayLecs.length > 0 && (
-                            <div className="cal-pill">마감 +{dayLecs.length}건</div>
-                          )}
+                          {dayCerts.map(c => <div key={c.id} className={`cal-bar cert ${c.completed ? 'done' : ''}`}>{c.title}</div>)}
+                          {dayLecs.length > 0 && <div className="cal-pill">마감 +{dayLecs.length}</div>}
                         </div>
                       </div>
                     );
@@ -182,66 +171,43 @@ export default function App() {
                 </div>
               </section>
 
-              {/* 하단: 마감 목록 -> '할 일 목록'으로 수정 */}
+              {/* 하단: 선택 날짜 기준 "진행 중인 주차" 할 일 (진도표 아님) */}
               <section className="card date-detail-sec">
-                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 할 일 목록</h3>
+                <h3>📅 {selDate.getMonth() + 1}월 {selDate.getDate()}일 수강 가능 강의</h3>
                 <div className="detail-task-list">
-                  {selDayTasks.length > 0 ? selDayTasks.map(t => (
+                  {selWeekLectures.length > 0 ? selWeekLectures.map(t => (
                     <label key={t.id} className={`detail-task-item ${t.completed ? 'completed' : ''}`}>
-                      <input 
-                        type="checkbox" 
-                        checked={t.completed} 
-                        onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} 
-                      />
-                      <span className="badge" style={{ background: t.col.light, color: t.col.text }}>{t.cname}</span>
-                      <span className="title">
-                        {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
-                        {t.title}
-                      </span>
+                      <input type="checkbox" checked={t.completed} onChange={() => toggleLecture(t.ci, t.wi, t.li)} />
+                      <span className="badge" style={{ background: t.col.light, color: t.col.text }}>{t.cname} {t.week}주차</span>
+                      <span className="title">{t.title}</span>
                     </label>
-                  )) : (
-                    <div className="empty-msg">해당 날짜에 할 일이나 마감 일정이 없습니다.</div>
-                  )}
+                  )) : <div className="empty-msg">진행 중인 주차의 강의가 없습니다.</div>}
                 </div>
               </section>
             </div>
 
             <aside className="right-col card">
+              <div className="sidebar-header"><h3>⏰ {selDate.getDate()}일 마감 일정</h3></div>
               <div className="task-tabs">
                 <button className={taskMode === 'todo' ? 'active' : ''} onClick={() => setTaskMode('todo')}>📌 해야 할 일</button>
                 <button className={taskMode === 'done' ? 'active' : ''} onClick={() => setTaskMode('done')}>✅ 한 일</button>
               </div>
               <div className="task-list">
-                {(taskMode === 'todo' ? todoTasks : doneTasks).map(t => {
-                  const d = getDday(t.dl);
-                  const isUrgent = d !== null && d <= 3 && !t.completed;
-                  return (
-                    <label key={t.id} className="task-card">
-                      <input 
-                        type="checkbox" 
-                        checked={t.completed} 
-                        onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} 
-                      />
-                      <div className="info">
-                        <span className="cname" style={{ color: t.col.text, background: t.col.light }}>{t.cname} {t.week ? `${t.week}주차` : ''}</span>
-                        <p className={`title ${t.completed ? 'strike' : ''}`}>
-                          {t.time && <span style={{ color: '#059669', marginRight: '6px', fontWeight: '800' }}>{t.time}</span>}
-                          {t.title}
-                        </p>
-                      </div>
-                      <div className={`dday-badge ${isUrgent ? 'urgent' : ''}`}>{ddayText(d)}</div>
-                    </label>
-                  );
-                })}
-                {(taskMode === 'todo' ? todoTasks : doneTasks).length === 0 && (
-                  <div className="empty-msg">목록이 비어있습니다.</div>
-                )}
+                {(taskMode === 'todo' ? sidebarTodo : sidebarDone).map(t => (
+                  <label key={t.id} className="task-card">
+                    <input type="checkbox" checked={t.completed} onChange={() => t.type === 'lecture' ? toggleLecture(t.ci, t.wi, t.li) : toggleCert(t.id)} />
+                    <div className="info">
+                      <span className="cname" style={{ color: t.col.text, background: t.col.light }}>{t.cname}</span>
+                      <p className={`title ${t.completed ? 'strike' : ''}`}>{t.time && <small>[{t.time}] </small>}{t.title}</p>
+                    </div>
+                    <div className={`dday-badge ${getDday(t.dl) <= 3 && !t.completed ? 'urgent' : ''}`}>{ddayText(getDday(t.dl))}</div>
+                  </label>
+                ))}
+                {(taskMode === 'todo' ? sidebarTodo : sidebarDone).length === 0 && <div className="empty-msg">마감 일정이 없습니다.</div>}
               </div>
             </aside>
-            
           </div>
         ) : (
-          
           <div className="course-view card">
             <div className="course-nav">
               {courses.map((c, i) => (
@@ -249,25 +215,22 @@ export default function App() {
               ))}
             </div>
             <div className="week-list">
-              {courses[selCourse].weeks.slice().reverse().map((w, wi) => {
-                const origIndex = courses[selCourse].weeks.length - 1 - wi; 
-                return (
-                  <div key={wi} className={`week-card ${w.lectures.every(l => l.completed) ? 'done' : ''}`}>
-                    <div className="week-info">
-                      <h3>{w.week}주차</h3>
-                      <span className="period">{w.period}</span>
-                    </div>
-                    <div className="lec-list">
-                      {w.lectures.map((l, li) => (
-                        <label key={li} className="lec-item">
-                          <input type="checkbox" checked={l.completed} onChange={() => toggleLecture(selCourse, origIndex, li)} />
-                          <span className={l.completed ? 'strike' : ''}>{l.title}</span>
-                        </label>
-                      ))}
-                    </div>
+              {sortedWeeks.map((w) => (
+                <div key={w.origIndex} className={`week-card ${w.isCurrent ? 'active-week' : ''} ${w.lectures.every(l => l.completed) ? 'done' : ''}`}>
+                  <div className="week-info">
+                    <h3>{w.isCurrent && '🔥 '}{w.week}주차</h3>
+                    <span className="period">{w.period}</span>
                   </div>
-                )
-              })}
+                  <div className="lec-list">
+                    {w.lectures.map((l, li) => (
+                      <label key={li} className="lec-item">
+                        <input type="checkbox" checked={l.completed} onChange={() => toggleLecture(selCourse, w.origIndex, li)} />
+                        <span className={l.completed ? 'strike' : ''}>{l.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -275,41 +238,21 @@ export default function App() {
         {showCertModal && (
           <div className="modal-overlay" onClick={() => setShowCertModal(false)}>
             <div className="modal-content card" onClick={e => e.stopPropagation()}>
-              <h3>새로운 일정 / 자격증 추가</h3>
+              <h3>일정 / 자격증 추가</h3>
               <form onSubmit={handleAddCert}>
-                <div className="input-group">
-                  <label>일정 이름</label>
-                  <input type="text" value={newCertName} onChange={e => setNewCertName(e.target.value)} placeholder="예: 정보처리기사 필기" required />
-                </div>
+                <div className="input-group"><label>이름</label><input type="text" value={newCertName} onChange={e => setNewCertName(e.target.value)} required /></div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <div className="input-group" style={{ flex: 1 }}>
-                    <label>날짜 (마감일)</label>
-                    <input type="date" value={newCertDate} onChange={e => setNewCertDate(e.target.value)} required />
-                  </div>
-                  <div className="input-group" style={{ width: '130px' }}>
-                    <label>시간</label>
-                    <input type="time" value={newCertTime} onChange={e => setNewCertTime(e.target.value)} required />
-                  </div>
+                  <div className="input-group" style={{ flex: 1 }}><label>날짜</label><input type="date" value={newCertDate} onChange={e => setNewCertDate(e.target.value)} required /></div>
+                  <div className="input-group" style={{ width: '120px' }}><label>시간</label><input type="time" value={newCertTime} onChange={e => setNewCertTime(e.target.value)} /></div>
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn-cancel" onClick={() => setShowCertModal(false)}>취소</button>
-                  <button type="submit" className="btn-submit">추가하기</button>
+                  <button type="submit" className="btn-submit">추가</button>
                 </div>
               </form>
-              
               {certs.length > 0 && (
                 <div className="cert-manage-list">
-                  <h4>등록된 일정 관리</h4>
-                  {certs.map(c => {
-                    const d = c.date.includes('T') ? new Date(c.date) : new Date(c.date + 'T23:59:59');
-                    const formatDt = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false})}`;
-                    return (
-                      <div key={c.id} className="cert-manage-item">
-                        <span>{c.name} <br/><small style={{color: '#9CA3AF'}}>{formatDt}</small></span>
-                        <button onClick={() => deleteCert(c.id)}>삭제</button>
-                      </div>
-                    );
-                  })}
+                  {certs.map(c => <div key={c.id} className="cert-manage-item"><span>{c.name} ({c.date.split('T')[0]})</span><button onClick={() => deleteCert(c.id)}>삭제</button></div>)}
                 </div>
               )}
             </div>
