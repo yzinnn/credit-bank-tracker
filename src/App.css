@@ -1,3 +1,141 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+:root { 
+  --primary: #3B82F6; 
+  --bg: #F3F4F6; 
+  --text: #1F2937; 
+  --border: #E5E7EB;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+body { background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+
+input[type="checkbox"] { accent-color: var(--primary); width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; }
+button { cursor: pointer; border: none; background: none; }
+.strike { text-decoration: line-through; color: #9CA3AF; }
+
+.card { background: #fff; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid var(--border); overflow: hidden; }
+
+/* Header */
+.main-header { background: #fff; padding: 16px 24px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); }
+.header-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+.header-inner h1 { font-size: 20px; font-weight: 800; cursor: pointer; flex-shrink: 0; }
+.header-inner nav { display: flex; gap: 8px; align-items: center; }
+.header-inner nav button { padding: 8px 16px; font-weight: 700; color: #6B7280; font-size: 15px; border-radius: 8px; transition: 0.2s; white-space: nowrap; }
+.header-inner nav button:hover { background: #F3F4F6; }
+.header-inner nav button.active { color: var(--primary); background: #EFF6FF; }
+.header-inner nav button.add-btn { background: var(--text); color: #fff; font-size: 13px; margin-left: 10px; }
+
+.content { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+.left-col { display: flex; flex-direction: column; gap: 24px; }
+
+/* Calendar */
+.cal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid var(--border); }
+.cal-header h2 { font-size: 18px; font-weight: 800; }
+.cal-nav button { padding: 6px 12px; border: 1px solid var(--border); background: #fff; border-radius: 6px; font-weight: 600; margin-left: 6px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--border); gap: 1px; border-bottom: 1px solid var(--border); }
+.cal-head { text-align: center; padding: 12px 0; font-weight: 700; font-size: 13px; color: #6B7280; background: #fff; }
+.cal-day { background: #fff; min-height: 110px; padding: 8px; cursor: pointer; transition: 0.2s; }
+.cal-day:hover { background: #F8FAFC; }
+.cal-day.dim { color: #9CA3AF; opacity: 0.5; background: #FAFAFA; }
+.cal-day.selected { background: #EFF6FF; outline: 2px solid var(--primary); outline-offset: -2px; }
+.day-num { font-weight: 700; font-size: 14px; display: inline-flex; justify-content: center; align-items: center; width: 26px; height: 26px; border-radius: 13px; margin-bottom: 6px; }
+.day-num.today { background: var(--primary); color: #fff; }
+
+/* Calendar Items */
+.cal-events { display: flex; flex-direction: column; gap: 4px; }
+.cal-bar { font-size: 11px; font-weight: 700; padding: 4px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-bar.cert { background: #D1FAE5; color: #059669; border: 1px solid #A7F3D0; }
+.cal-bar.cert.done { opacity: 0.4; text-decoration: line-through; }
+.cal-pill { font-size: 12px; font-weight: 800; color: #4B5563; background: #F3F4F6; display: inline-block; padding: 3px 8px; border-radius: 12px; align-self: flex-start; border: 1px solid var(--border); }
+
+/* Selected Date Detail List (Left Bottom) */
+.date-detail-sec { padding: 24px; }
+.date-detail-sec h3 { font-size: 17px; font-weight: 800; margin-bottom: 16px; color: var(--primary); }
+.detail-task-list { display: flex; flex-direction: column; gap: 8px; }
+.detail-task-item { display: flex; align-items: center; gap: 12px; padding: 14px; background: #F9FAFB; border-radius: 10px; border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+.detail-task-item:hover { background: #F3F4F6; }
+.detail-task-item.completed { opacity: 0.6; }
+.detail-task-item.completed .title { text-decoration: line-through; color: #9CA3AF; }
+.detail-task-item .badge { font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
+.detail-task-item .title { font-size: 15px; font-weight: 600; flex: 1; word-break: keep-all; }
+
+/* Sidebar (Right) */
+.right-col { height: calc(100vh - 120px); display: flex; flex-direction: column; position: sticky; top: 88px; }
+.sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); background: #fff; }
+.sidebar-header h3 { font-size: 15px; font-weight: 800; color: #111827; }
+.task-tabs { display: flex; padding: 8px; background: #F9FAFB; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.task-tabs button { flex: 1; padding: 12px; border-radius: 8px; font-weight: 800; font-size: 14px; color: #6B7280; transition: 0.2s; }
+.task-tabs button.active { background: #fff; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+.task-list { padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.task-card { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: 0.2s; background: #fff; }
+.task-card:hover { border-color: var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+.task-card .info { flex: 1; min-width: 0; }
+.task-card .cname { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; margin-bottom: 6px; }
+.task-card .title { font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dday-badge { font-size: 12px; font-weight: 900; color: #6B7280; background: #F3F4F6; padding: 5px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.dday-badge.urgent { color: #DC2626; background: #FEE2E2; }
+.empty-msg { text-align: center; padding: 40px 0; color: #9CA3AF; font-size: 14px; font-weight: 600; }
+
+/* Course View (Active Week Highlight) */
+.course-view { padding: 24px; min-height: calc(100vh - 120px); }
+.course-nav { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.course-nav button { white-space: nowrap; padding: 10px 20px; border-radius: 99px; border: 1px solid var(--border); font-weight: 700; font-size: 14px; color: #4B5563; }
+.course-nav button.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+.current-week-section { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px dashed var(--border); }
+.section-title { font-size: 16px; font-weight: 800; color: #DC2626; margin-bottom: 12px; }
+.active-week { border: 2px solid var(--primary) !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important; }
+
+.week-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; margin-bottom: 16px; overflow: hidden; }
+.week-card.done { opacity: 0.5; background: #F9FAFB; border-color: transparent; }
+.week-info { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: baseline; gap: 12px; background: #F8FAFC; }
+.lec-item { display: flex; align-items: center; gap: 12px; padding: 14px 20px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #F9FAFB; }
+.lec-item:hover { background: #F3F4F6; }
+.lec-item span { font-size: 15px; font-weight: 600; }
+
+/* Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); padding: 16px; }
+.modal-content { background: #fff; padding: 30px; border-radius: 20px; width: 400px; max-width: 100%; max-height: 90vh; overflow-y: auto; }
+.modal-content h3 { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+.input-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+.input-group label { font-size: 13px; font-weight: 700; color: #4B5563; }
+.input-group input { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
+.input-group input:focus { border-color: var(--primary); }
+.modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+.modal-actions button { flex: 1; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 15px; }
+.btn-cancel { background: #F3F4F6; color: #4B5563; }
+.btn-submit { background: var(--primary); color: #fff; }
+.cert-manage-list { margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px; }
+.cert-manage-list h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: #6B7280; }
+.cert-manage-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #F9FAFB; border-radius: 8px; margin-bottom: 8px; font-size: 14px; font-weight: 600; gap: 10px;}
+.cert-manage-item button { color: #DC2626; font-size: 13px; font-weight: 700; padding: 4px 8px; background: #FEE2E2; border-radius: 6px; flex-shrink: 0; }
+
+/* =========================================
+   📱 태블릿(iPad) & 모바일(iPhone) 반응형 최적화
+   ========================================= */
+@media (max-width: 1024px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .right-col { height: auto; position: static; }
+  .task-list { max-height: 500px; }
+}
+
+@media (max-width: 768px) {
+  .header-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .header-inner nav { width: 100%; overflow-x: auto; padding-bottom: 4px; }
+  .header-inner nav::-webkit-scrollbar { height: 4px; }
+  .cal-header { padding: 16px; }
+  .cal-day { min-height: 80px; padding: 4px; }
+  .day-num { font-size: 12px; width: 22px; height: 22px; }
+  .cal-bar, .cal-pill { font-size: 10px; padding: 2px 4px; }
+  .date-detail-sec { padding: 16px; }
+  .detail-task-item { align-items: flex-start; }
+  .detail-task-item input { margin-top: 2px; }
+  .course-view { padding: 16px; }
+  .modal-content { padding: 20px; }
+}
 /* 기존 CSS는 유지하되 아래 부분만 확실히 확인/추가해주세요 */
 .current-week-section { margin-bottom: 24px; }
 .active-week { 
